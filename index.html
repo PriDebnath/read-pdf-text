@@ -35,6 +35,7 @@
 
         .size-xlarge {
             font-size: 1.5em;
+            margin-bottom: 0.5re, ;
         }
     </style>
 </head>
@@ -60,6 +61,16 @@
         <option value="2">Super Fast Speed</option>
         <option value="2.5">Super Super Fast Speed</option>
         <option value="0.75">Slow Speed</option>
+    </select>
+    <select id="languageSelect"
+            class="size-xlarge">
+        <option value="en-US"
+                selected>English (US)</option>
+        <option value="en-GB">English (UK)</option>
+        <option value="es-ES">Spanish</option>
+        <option value="fr-FR">French</option>
+        <option value="de-DE">German</option>
+        <option value="hi-IN">Hindi</option>
     </select>
 
     <div id="pdfText"
@@ -92,6 +103,9 @@
         let utterance;
 
         const getRate = () => parseFloat(speedSelect.value);
+        const getSelectedLanguage = () => {
+            return document.getElementById("languageSelect").value;
+        };
 
         const displayWords = (text) => {
             words = text.trim().split(/\s+/);
@@ -149,7 +163,7 @@
 
             const word = words[currentIndex];
             utterance = new SpeechSynthesisUtterance(word);
-            utterance.lang = 'en-US';
+            utterance.lang = getSelectedLanguage();
             utterance.rate = getRate();
 
             utterance.onstart = () => {
@@ -174,7 +188,7 @@
             const chunkText = chunkWords.join(' ');
 
             utterance = new SpeechSynthesisUtterance(chunkText);
-            utterance.lang = 'en-US';
+            utterance.lang = getSelectedLanguage();
             utterance.rate = getRate();
 
             utterance.onboundary = (event) => {
