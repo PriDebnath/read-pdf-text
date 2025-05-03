@@ -17,7 +17,24 @@
 
         .highlight {
             background-color: yellow;
-            font-weight: bold;
+            /* font-weight: bold; */
+        }
+
+        #pdfText {
+            height: 75vh;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #pdfText span {
+            cursor: pointer;
+        }
+
+
+        .size-xlarge {
+            font-size: 1.5em;
         }
     </style>
 </head>
@@ -26,21 +43,35 @@
     <h2>PDF Reader</h2>
     <input type="file"
            id="fileInput"
-           accept="application/pdf"><br><br>
-    <button id="startBtn">Read</button>
-    <button id="pauseBtn">Pause</button>
-    <button id="stopBtn">Stop</button>
-    <button id="resumeBtn">Resume</button>
-    <select id="speedSelect">
-        <option value="200">Normal Speed</option>
-        <option value="100">Fast Speed</option>
-        <option selected
-                value="50"> Super Fast Speed</option>
-        <option value="300">Slow Speed</option>
+           accept="application/pdf"
+           class="size-xlarge"><br><br>
+    <button id="startBtn"
+            class="size-xlarge">Read</button>
+    <button id="pauseBtn"
+            class="size-xlarge">Pause</button>
+    <button id="stopBtn"
+            class="size-xlarge">Stop</button>
+    <button id="resumeBtn"
+            class="size-xlarge">Resume</button>
+    <select id="speedSelect"
+            class="size-xlarge">
+        <option value="1">Normal Speed</option>
+        <option value="1.5">Fast Speed</option>
+        <option value="2">Super Fast Speed</option>
+        <option value="2.5">Super Super Fast Speed</option>
+        <option value="0.75">Slow Speed</option>
     </select>
 
     <div id="pdfText"
-         style="margin-top:20px;"></div>
+         style="margin-top:20px;">
+
+        <div style="text-align: center;padding: 5rem;">
+            <h2>Welcome to PDF Reader</h2>
+            <p>Upload a PDF file to start reading.</p>
+            <p>Click on any word to read it aloud.</p>
+        </div>
+
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script>
@@ -51,30 +82,16 @@
         const resumeBtn = document.getElementById('resumeBtn');
         const pdfTextDiv = document.getElementById('pdfText');
         const speedSelect = document.getElementById('speedSelect');
-        ////
 
         let words = [];
         let currentIndex = 0;
         let isPaused = false;
         let isStopped = false;
         let isReading = false;
-        // let readingSpeed = 200;
-        let pausedIndex = -1; // To track where we left off during pause
+        let pausedIndex = -1;
         let utterance;
 
-        ////
-
-        const handleReadingSpeedChange = (event) => {
-            readingSpeed = parseInt(event.target.value);
-            console.log("Reading speed set to:", readingSpeed);
-        };
-
-        const getReadingSpeed = () => {
-            const selectedSpeed = Number(speedSelect.value);
-
-            return selectedSpeed;
-        }
-        speedSelect.addEventListener('change', handleReadingSpeedChange);
+        const getRate = () => parseFloat(speedSelect.value);
 
         const displayWords = (text) => {
             words = text.trim().split(/\s+/);
@@ -86,22 +103,22 @@
                 span.textContent = word + ' ';
                 pdfTextDiv.appendChild(span);
             });
-            currentIndex = 0; // Reset to start when a new PDF is loaded
-            pausedIndex = -1; // Reset the paused index
-        }
+            currentIndex = 0;
+            pausedIndex = -1;
+        };
 
         const removeHighlights = () => {
             document.querySelectorAll('.word').forEach(el => el.classList.remove('highlight'));
-        }
+        };
 
         const highlightWord = (index) => {
-            removeHighlights()
+            removeHighlights();
             const el = document.getElementById(`word-${index}`);
             if (el) {
                 el.classList.add('highlight');
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-        }
+        };
 
         const handleFileInputChange = async () => {
             const file = fileInput.files[0];
@@ -112,81 +129,89 @@
 
             reader.onload = async function () {
                 let text = '';
-
                 const typedarray = new Uint8Array(this.result);
                 const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
 
                 for (let i = 1; i <= pdf.numPages; i++) {
                     const page = await pdf.getPage(i);
                     const content = await page.getTextContent();
-                    let texts = content.items
-                    let textsString = texts.map(item => item.str)
-
-                    let formattedText = textsString.join(' ') + ' ';
-                    console.log({
-                        content,
-                        texts,
-                        textsString,
-                        formattedText
-                    })
-
-                    text = text + formattedText
+                    let texts = content.items.map(item => item.str);
+                    text += texts.join(' ') + ' ';
                 }
                 displayWords(text);
             };
-        }
+        };
 
+        fileInput.addEventListener('change', handleFileInputChange);
 
-        fileInput.addEventListener('change', handleFileInputChange)
-
-
-        const speakWords = () => {
-            if (currentIndex >= words.length || isStopped) {
-                console.log("Reading finished or stopped.");
-                return;
-            }
+        const speakWords = () => { // unused function
+            if (currentIndex >= words.length || isStopped) return;
 
             const word = words[currentIndex];
             utterance = new SpeechSynthesisUtterance(word);
             utterance.lang = 'en-US';
+            utterance.rate = getRate();
 
             utterance.onstart = () => {
                 highlightWord(currentIndex);
-                console.log(`Speaking word ${currentIndex}: ${word}`);
             };
 
             utterance.onend = () => {
                 if (!isPaused && !isStopped) {
                     currentIndex++;
-                    setTimeout(() => {
-                        if (!isPaused && !isStopped) {
-                            speakWords(); // Continue reading next word
-                        }
-                    }, 7);
+                    speakText();
                 }
             };
 
             speechSynthesis.speak(utterance);
-        }
+        };
 
+        const speakText = () => {
+            if (isStopped || currentIndex >= words.length) return;
+
+            const chunkSize = 10;
+            const chunkWords = words.slice(currentIndex, currentIndex + chunkSize);
+            const chunkText = chunkWords.join(' ');
+
+            utterance = new SpeechSynthesisUtterance(chunkText);
+            utterance.lang = 'en-US';
+            utterance.rate = getRate();
+
+            utterance.onboundary = (event) => {
+                if (event.name === "word") {
+                    const charIndex = event.charIndex;
+                    const spokenText = chunkText.substring(0, charIndex);
+                    const spokenWordsCount = spokenText.trim().split(/\s+/).length;
+                    highlightWord(currentIndex + spokenWordsCount - 1);
+                }
+            };
+
+            utterance.onend = () => {
+                if (!isPaused && !isStopped) {
+                    currentIndex += chunkSize;
+                    speakText();
+                }
+            };
+
+            speechSynthesis.speak(utterance);
+        };
 
         startBtn.onclick = () => {
-            if (isReading) return; // Avoid starting multiple readings
+            if (isReading) return;
             isReading = true;
             isPaused = false;
             isStopped = false;
-            speechSynthesis.cancel(); // Reset the speech
+            speechSynthesis.cancel();
             currentIndex = 0;
-            speakWords(); // Start reading from the beginning
+            speakText();
         };
 
         pauseBtn.onclick = () => {
             if (speechSynthesis.speaking) {
-                speechSynthesis.cancel(); // Stop current speaking
+                speechSynthesis.cancel();
                 isPaused = true;
-                isReading = false; // Pause reading
-                pausedIndex = currentIndex; // Save the current word index
-                console.log("Paused at word:", currentIndex);
+                isReading = false;
+                pausedIndex = currentIndex;
             }
         };
 
@@ -195,70 +220,59 @@
             isStopped = true;
             isReading = false;
             currentIndex = 0;
-
-            removeHighlights()
-
-            console.log("Stopped");
+            removeHighlights();
         };
 
         resumeBtn.onclick = () => {
-            if (!isPaused) return; // Only resume if paused
-            console.log("Resuming from word:", pausedIndex);
-
-            // Clear the current highlight and reapply it for the paused index
-            removeHighlights()
-
-            // Re-start the speech synthesis from the paused index
+            if (!isPaused) return;
             currentIndex = pausedIndex;
+
             const wordToRead = words[currentIndex];
             utterance = new SpeechSynthesisUtterance(wordToRead);
             utterance.lang = 'en-US';
+            utterance.rate = getRate();
 
             utterance.onstart = () => {
                 highlightWord(currentIndex);
-                console.log(`Resumed reading from word ${currentIndex}: ${words[currentIndex]}`);
             };
 
             utterance.onend = () => {
                 if (!isStopped) {
-                    currentIndex++; // Ensure that currentIndex moves forward after reading the resumed word
-                    if (currentIndex < words.length) {
-                        setTimeout(() => {
-                            if (!isStopped) {
-                                speakWords(); // Continue reading the rest
-                            }
-                        }, 8);
-                    }
+                    currentIndex++;
+                    speakText();
                 }
             };
 
             speechSynthesis.speak(utterance);
-            isPaused = false; // Allow reading to continue after resume
+            isPaused = false;
         };
 
-
-
-        ////
         pdfTextDiv.addEventListener("click", (event) => {
             const target = event.target;
             if (target.classList.contains("word")) {
                 const index = parseInt(target.id.split("-")[1]);
-                //
-
                 currentIndex = index;
+
                 const wordToRead = words[currentIndex];
                 utterance = new SpeechSynthesisUtterance(wordToRead);
                 utterance.lang = 'en-US';
+                utterance.rate = getRate();
 
-
-                ////
-                // currentIndex = index;
-                console.log("Clicked word, starting from index:", currentIndex);
+                removeHighlights();
                 isPaused = false;
                 isReading = true;
                 speechSynthesis.cancel();
-                // speakFromIndex(currentIndex);
-                speakWords();
+
+                utterance.onstart = () => {
+                    highlightWord(currentIndex);
+                };
+
+                utterance.onend = () => {
+                    currentIndex++;
+                    speakText();
+                };
+
+                speechSynthesis.speak(utterance);
             }
         });
     </script>
