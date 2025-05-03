@@ -5,27 +5,42 @@
     <meta charset="UTF-8">
     <title>PDF Reader with Highlighting</title>
     <style>
+        :root {
+            --border-radius: 0.4rem;
+            --padding: 0.4rem;
+            --border-color: #ccc;
+        }
+
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
+            background: #171717;
+            color: whitesmoke;
+
         }
 
         .word {
             padding: 2px 4px;
             display: inline-block;
+            transition: background-color 0.4s ease, box-shadow 0.4s ease;
+            border-radius: var(--border-radius);
+
         }
 
         .highlight {
             background-color: yellow;
-            /* font-weight: bold; */
+            background-color: rgba(180, 180, 2, 0.5);
+            border-radius: var(--border-radius);
         }
 
         #pdfText {
             height: 75vh;
             overflow-y: auto;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             padding: 10px;
-            border-radius: 5px;
+            border-radius: var(--border-radius);
+            background: #323232d9;
+
         }
 
         #pdfText span {
@@ -34,14 +49,19 @@
 
 
         .size-xlarge {
-            font-size: 1.5em;
-            margin-bottom: 0.5re, ;
+            font-size: 1.2em;
+            margin-bottom: 0.5rem;
+            background: #323232d9;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            padding: var(--padding) calc(var(--padding) * 2);
+            color: whitesmoke;
         }
     </style>
 </head>
 
 <body>
-    <h2>PDF Reader</h2>
+    <h1>PDF Reader</h1>
     <input type="file"
            id="fileInput"
            accept="application/pdf"
@@ -141,6 +161,13 @@
             const reader = new FileReader();
             reader.readAsArrayBuffer(file);
 
+            if (!reader.onload) {
+                setTimeout(() => {
+                    pdfTextDiv.textContent = 'Could not load the PDF, try again'
+                }, 1000);
+
+            }
+
             reader.onload = async function () {
                 let text = '';
                 const typedarray = new Uint8Array(this.result);
@@ -183,7 +210,7 @@
         const speakText = () => {
             if (isStopped || currentIndex >= words.length) return;
 
-            const chunkSize = 10;
+            const chunkSize = 100;
             const chunkWords = words.slice(currentIndex, currentIndex + chunkSize);
             const chunkText = chunkWords.join(' ');
 
